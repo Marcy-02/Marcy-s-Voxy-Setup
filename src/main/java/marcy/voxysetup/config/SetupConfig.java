@@ -14,7 +14,7 @@ public class SetupConfig {
     private static SetupConfig INSTANCE;
 
     public String repositoryZipUrl = "https://github.com/Marcy-02/voxy/archive/refs/heads/main.zip";
-    public String expectedVoxyVersion = "0.4.13";
+    public String expectedVoxyVersion = "1.0.0";
     public boolean showTitleScreenButton = true;
 
     public static SetupConfig get() {
