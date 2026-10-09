@@ -1,0 +1,24 @@
+modLoader="javafml"
+loaderVersion="[4,)"
+license="AGPL-3.0-only"
+
+[[mods]]
+modId="marcy_voxy_setup"
+version="1.0.0"
+displayName="Marcy's Voxy Setup"
+description="Automated in-game installer and compiler for high-performance NeoVoxy with Create distant shadows & Sable contraption LOD."
+authors="Marcy"
+
+[[dependencies.marcy_voxy_setup]]
+    modId="neoforge"
+    type="required"
+    versionRange="[21.1,)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.marcy_voxy_setup]]
+    modId="minecraft"
+    type="required"
+    versionRange="[1.21.1]"
+    ordering="NONE"
+    side="BOTH"
