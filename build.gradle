@@ -2,7 +2,7 @@ plugins {
     id 'net.neoforged.moddev' version "2.0.42-beta"
 }
 
-version = '1.0.0'
+version = '1.0.2'
 group = 'marcy.voxysetup'
 
 base {

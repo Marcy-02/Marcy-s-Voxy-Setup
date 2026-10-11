@@ -24,7 +24,7 @@ An in-game, one-click tool that compiles and installs **NeoVoxy** directly insid
 * **Client-Side Only:** Runs completely locally. You can join any vanilla or modded server with it.
 ---
 ## 🛠️ How to Use
-1. Put `marcys-voxy-setup-1.0.0.jar` into your Minecraft `mods` folder.
+1. Put `marcys-voxy-setup-1.0.2.jar` into your Minecraft `mods` folder.
 2. Launch Minecraft (NeoForge 1.21.1) to the **Title Screen**.
 3. Click **"⚡ Setup NeoVoxy"** in the top-left corner.
 4. Click **"Start Setup"** and give it ~30–60 seconds to compile.
@@ -33,7 +33,7 @@ An in-game, one-click tool that compiles and installs **NeoVoxy** directly insid
 
 ## ❓ FAQ
 * **Can I delete this setup mod after installing NeoVoxy?**  
-Yes. Once `neo-voxy-0.4.13-slim.jar` is generated in your `mods` folder, the setup mod automatically hides its button. You can leave it installed for future updates or safely delete the setup JAR.
+Yes. Once `neo-voxy-1.0.2-slim.jar` is generated in your `mods` folder, the setup mod automatically hides its button. You can leave it installed for future updates or safely delete the setup JAR.
 
 
 * **Do I need Java or Gradle installed on my PC?**  
