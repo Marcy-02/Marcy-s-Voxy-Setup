@@ -47,16 +47,15 @@ public class TitleScreenEventHandler {
 
         // 2. Voxy is installed: check for updates
         if (VersionChecker.hasUpdate()) {
-            String newVer = VersionChecker.getRemoteVersion().orElse("new");
-            String btnText = "⬆ Update Voxy (v" + newVer + ")";
-            int buttonWidth = 145;
+            String btnText = "⬆ Update Voxy";
+            int buttonWidth = 115;
 
             Button updateBtn = Button.builder(
                     Component.literal(btnText),
                     btn -> Minecraft.getInstance().setScreen(new VoxySetupScreen(titleScreen, true))
             )
             .bounds(x, y, buttonWidth, buttonHeight)
-            .tooltip(Tooltip.create(Component.literal("A newer version of Create: Voxyfied is available (v" + newVer + "). Click to compile and update!")))
+            .tooltip(Tooltip.create(Component.literal("A newer version of Create: Voxyfied is available. Click to compile and update!")))
             .build();
 
             event.addListener(updateBtn);

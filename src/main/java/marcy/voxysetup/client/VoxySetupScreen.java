@@ -132,7 +132,7 @@ public class VoxySetupScreen extends Screen {
         // 2. Title and header - crisp, sharp, unblurred
         String title = isUpdate ? "⬆ Marcy's NeoVoxy Update" : "⚡ Marcy's NeoVoxy Setup";
         String subtitle = isUpdate
-                ? ("Updating Create: Voxyfied to v" + VersionChecker.getRemoteVersion().orElse("latest"))
+                ? "Updating Create: Voxyfied to the latest version"
                 : "Automated in-game builder with Create distant shadows & Sable LOD";
 
         graphics.drawCenteredString(this.font, Component.literal(title), centerX, 16, 0xFFFFAA);
