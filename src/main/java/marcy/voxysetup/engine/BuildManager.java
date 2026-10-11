@@ -7,9 +7,8 @@ import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
+import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
@@ -47,7 +46,7 @@ public class BuildManager {
         logger.accept("Workspace initialized at: " + workspaceDir);
 
         // 1. Fetch Source
-        progress.update(0.15f, "Fetching NeoVoxy source code...");
+        progress.update(0.15f, "Fetching latest NeoVoxy source code...");
         Path sourceDir = fetchSource(workspaceDir, logger);
 
         if (cancelled) throw new InterruptedException("Build cancelled by user.");
@@ -82,8 +81,18 @@ public class BuildManager {
         progress.update(0.95f, "Installing to mods folder...");
         Files.createDirectories(modsDir);
         Path destModJar = modsDir.resolve(slimJar.getFileName().toString());
+
+        // Clean older Voxy jars to prevent duplicates and mod conflicts
+        cleanOldVoxyJars(modsDir, destModJar.getFileName().toString(), logger);
+
         Files.copy(slimJar, destModJar, StandardCopyOption.REPLACE_EXISTING);
         logger.accept("Successfully deployed: " + destModJar);
+
+        // 7. Clean up workspace: delete all intermediate build files, downloaded source, and JDK
+        progress.update(0.98f, "Cleaning up workspace...");
+        logger.accept("Deleting build workspace to reclaim disk space...");
+        deleteDirectoryRecursively(workspaceDir);
+        logger.accept("Workspace cleaned up. Temporary files deleted.");
 
         progress.update(1.0f, "Installation complete!");
         logger.accept("==================================================");
@@ -95,10 +104,10 @@ public class BuildManager {
     private static Path fetchSource(Path workspaceDir, Consumer<String> logger) throws Exception {
         Path sourceDir = workspaceDir.resolve("voxy-source");
 
-        // If local voxy-source already has build.gradle, reuse it
-        if (Files.isRegularFile(sourceDir.resolve("build.gradle"))) {
-            logger.accept("Using existing NeoVoxy source directory: " + sourceDir);
-            return sourceDir;
+        // Always clean any existing voxy-source to ensure fresh, up-to-date source files
+        if (Files.exists(sourceDir)) {
+            logger.accept("Cleaning previous source directory...");
+            deleteDirectoryRecursively(sourceDir);
         }
 
         String repoZipUrl = SetupConfig.get().repositoryZipUrl;
@@ -126,6 +135,54 @@ public class BuildManager {
         return detectedRoot;
     }
 
+    private static void cleanOldVoxyJars(Path modsDir, String newJarName, Consumer<String> logger) {
+        try (var stream = Files.list(modsDir)) {
+            stream.filter(p -> {
+                String name = p.getFileName().toString();
+                return (name.startsWith("neo-voxy-") || name.startsWith("voxy-"))
+                        && name.endsWith(".jar")
+                        && !name.equals(newJarName)
+                        && !name.equals("voxy-server-side-neoforge.jar");
+            }).forEach(oldJar -> {
+                try {
+                    Files.deleteIfExists(oldJar);
+                    logger.accept("Removed older version: " + oldJar.getFileName());
+                } catch (Exception e) {
+                    oldJar.toFile().deleteOnExit();
+                }
+            });
+        } catch (Exception ignored) {
+        }
+    }
+
+    public static void deleteDirectoryRecursively(Path root) {
+        if (!Files.exists(root)) return;
+        try {
+            Files.walkFileTree(root, new SimpleFileVisitor<>() {
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                    try {
+                        Files.deleteIfExists(file);
+                    } catch (Exception ignored) {
+                        file.toFile().deleteOnExit();
+                    }
+                    return FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public FileVisitResult postVisitDirectory(Path dir, IOException exc) {
+                    try {
+                        Files.deleteIfExists(dir);
+                    } catch (Exception ignored) {
+                        dir.toFile().deleteOnExit();
+                    }
+                    return FileVisitResult.CONTINUE;
+                }
+            });
+        } catch (Exception ignored) {
+        }
+    }
+
     private static Path findProjectRoot(Path base) {
         if (Files.isRegularFile(base.resolve("build.gradle"))) return base;
         try (var s = Files.walk(base, 2)) {
@@ -143,7 +200,7 @@ public class BuildManager {
             while ((entry = zis.getNextEntry()) != null) {
                 Path dest = targetDir.resolve(entry.getName()).normalize();
                 if (!dest.startsWith(targetDir)) {
-                    throw new SecurityException("Zip slip: " + entry.getName());
+                    throw new IOException("Zip entry attempted directory traversal: " + entry.getName());
                 }
                 if (entry.isDirectory()) {
                     Files.createDirectories(dest);

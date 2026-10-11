@@ -1,6 +1,7 @@
 package marcy.voxysetup.client;
 
 import marcy.voxysetup.engine.BuildManager;
+import marcy.voxysetup.engine.VersionChecker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
@@ -21,9 +22,10 @@ public class VoxySetupScreen extends Screen {
     }
 
     private final Screen parent;
+    private final boolean isUpdate;
     private State state = State.IDLE;
     private float progress = 0.0f;
-    private String stepText = "Ready to build and install NeoVoxy.";
+    private String stepText;
     private final List<String> logLines = Collections.synchronizedList(new ArrayList<>());
 
     private Button startButton;
@@ -31,8 +33,14 @@ public class VoxySetupScreen extends Screen {
     private Thread workerThread;
 
     public VoxySetupScreen(Screen parent) {
-        super(Component.literal("NeoVoxy Automatic Setup"));
+        this(parent, false);
+    }
+
+    public VoxySetupScreen(Screen parent, boolean isUpdate) {
+        super(Component.literal(isUpdate ? "NeoVoxy Automatic Update" : "NeoVoxy Automatic Setup"));
         this.parent = parent;
+        this.isUpdate = isUpdate;
+        this.stepText = isUpdate ? "Ready to update Create: Voxyfied." : "Ready to build and install NeoVoxy.";
     }
 
     @Override
@@ -43,7 +51,8 @@ public class VoxySetupScreen extends Screen {
         int bottomY = this.height - 36;
 
         if (state == State.IDLE) {
-            startButton = Button.builder(Component.literal("⚡ Start Setup"), btn -> startBuild())
+            String startLabel = isUpdate ? "⚡ Start Update" : "⚡ Start Setup";
+            startButton = Button.builder(Component.literal(startLabel), btn -> startBuild())
                     .bounds(centerX - 155, bottomY, 150, 20)
                     .build();
             this.addRenderableWidget(startButton);
@@ -81,7 +90,7 @@ public class VoxySetupScreen extends Screen {
         this.state = State.BUILDING;
         this.progress = 0.0f;
         this.logLines.clear();
-        this.stepText = "Initializing...";
+        this.stepText = isUpdate ? "Starting update..." : "Initializing...";
         this.init();
 
         workerThread = new Thread(() -> {
@@ -99,7 +108,9 @@ public class VoxySetupScreen extends Screen {
                         }
                 );
                 this.state = State.SUCCESS;
-                this.stepText = "✓ NeoVoxy installed! Please close and restart the game.";
+                this.stepText = isUpdate
+                        ? "✓ NeoVoxy updated! Please close and restart the game."
+                        : "✓ NeoVoxy installed! Please close and restart the game.";
             } catch (Exception e) {
                 this.state = State.FAILED;
                 this.stepText = "✗ Build failed: " + e.getMessage();
@@ -119,8 +130,13 @@ public class VoxySetupScreen extends Screen {
         int centerX = this.width / 2;
 
         // 2. Title and header - crisp, sharp, unblurred
-        graphics.drawCenteredString(this.font, Component.literal("⚡ Marcy's NeoVoxy Setup"), centerX, 16, 0xFFFFAA);
-        graphics.drawCenteredString(this.font, Component.literal("Automated in-game builder with Create distant shadows & Sable LOD"), centerX, 30, 0xAAAAAA);
+        String title = isUpdate ? "⬆ Marcy's NeoVoxy Update" : "⚡ Marcy's NeoVoxy Setup";
+        String subtitle = isUpdate
+                ? ("Updating Create: Voxyfied to v" + VersionChecker.getRemoteVersion().orElse("latest"))
+                : "Automated in-game builder with Create distant shadows & Sable LOD";
+
+        graphics.drawCenteredString(this.font, Component.literal(title), centerX, 16, 0xFFFFAA);
+        graphics.drawCenteredString(this.font, Component.literal(subtitle), centerX, 30, 0xAAAAAA);
 
         // 3. Progress Card Container
         int cardLeft = 40;

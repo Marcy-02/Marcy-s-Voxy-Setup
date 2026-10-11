@@ -13,9 +13,11 @@ public class SetupConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static SetupConfig INSTANCE;
 
-    public String repositoryZipUrl = "https://github.com/Marcy-02/voxy/archive/refs/heads/main.zip";
+    public String repositoryZipUrl = "https://github.com/Marcy-02/voxy/archive/refs/heads/MarcyFix.zip";
+    public String versionCheckUrl = "https://raw.githubusercontent.com/Marcy-02/voxy/MarcyFix/gradle.properties";
     public String expectedVoxyVersion = "1.0.0";
     public boolean showTitleScreenButton = true;
+    public boolean checkForUpdates = true;
 
     public static SetupConfig get() {
         if (INSTANCE == null) {
