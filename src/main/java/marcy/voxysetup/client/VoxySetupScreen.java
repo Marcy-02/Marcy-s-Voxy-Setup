@@ -111,6 +111,10 @@ public class VoxySetupScreen extends Screen {
                 this.stepText = isUpdate
                         ? "✓ NeoVoxy updated! Please close and restart the game."
                         : "✓ NeoVoxy installed! Please close and restart the game.";
+            } catch (InterruptedException e) {
+                this.state = State.FAILED;
+                this.stepText = "Build cancelled.";
+                logLines.add("Build was cancelled by user.");
             } catch (Exception e) {
                 this.state = State.FAILED;
                 this.stepText = "✗ Build failed: " + e.getMessage();

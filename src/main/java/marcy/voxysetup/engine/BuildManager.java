@@ -42,63 +42,73 @@ public class BuildManager {
         Path workspaceDir = gameDir.resolve("neovoxy-builder-workspace");
         Files.createDirectories(workspaceDir);
 
-        progress.update(0.05f, "Preparing workspace...");
-        logger.accept("Workspace initialized at: " + workspaceDir);
+        try {
+            progress.update(0.05f, "Preparing workspace...");
+            logger.accept("Workspace initialized at: " + workspaceDir);
 
-        // 1. Fetch Source
-        progress.update(0.15f, "Fetching latest NeoVoxy source code...");
-        Path sourceDir = fetchSource(workspaceDir, logger);
+            // 1. Fetch Source
+            progress.update(0.15f, "Fetching latest NeoVoxy source code...");
+            Path sourceDir = fetchSource(workspaceDir, logger);
 
-        if (cancelled) throw new InterruptedException("Build cancelled by user.");
+            if (cancelled) throw new InterruptedException("Build cancelled by user.");
 
-        // 2. Fetch compile-time dependencies
-        progress.update(0.35f, "Preparing compile dependencies (libs/aero-spike)...");
-        Path aeroSpikeDir = sourceDir.resolve("libs").resolve("aero-spike");
-        DependencyDownloader.ensureDependencies(aeroSpikeDir, logger);
+            // 2. Fetch compile-time dependencies
+            progress.update(0.35f, "Preparing compile dependencies (libs/aero-spike)...");
+            Path aeroSpikeDir = sourceDir.resolve("libs").resolve("aero-spike");
+            DependencyDownloader.ensureDependencies(aeroSpikeDir, logger);
 
-        if (cancelled) throw new InterruptedException("Build cancelled by user.");
+            if (cancelled) throw new InterruptedException("Build cancelled by user.");
 
-        // 3. Locate or download JDK 21
-        progress.update(0.50f, "Checking JDK 21 environment...");
-        Path javaHome = JdkManager.ensureJdk(workspaceDir, logger);
+            // 3. Locate or download JDK 21
+            progress.update(0.50f, "Checking JDK 21 environment...");
+            Path javaHome = JdkManager.ensureJdk(workspaceDir, logger);
 
-        if (cancelled) throw new InterruptedException("Build cancelled by user.");
+            if (cancelled) throw new InterruptedException("Build cancelled by user.");
 
-        // 4. Run Gradle Build
-        progress.update(0.65f, "Compiling NeoVoxy (gradlew build)...");
-        runGradle(sourceDir, javaHome, logger);
+            // 4. Run Gradle Build
+            progress.update(0.65f, "Compiling NeoVoxy (gradlew build)...");
+            runGradle(sourceDir, javaHome, logger);
 
-        if (cancelled) throw new InterruptedException("Build cancelled by user.");
+            if (cancelled) throw new InterruptedException("Build cancelled by user.");
 
-        // 5. Trim native libraries to produce slim jar
-        progress.update(0.85f, "Optimizing JAR size (stripping unused natives)...");
-        Path buildLibsDir = sourceDir.resolve("build").resolve("libs");
-        Path fullJar = findBuiltJar(buildLibsDir);
-        Path slimJar = buildLibsDir.resolve(fullJar.getFileName().toString().replace(".jar", "-slim.jar"));
-        JarTrimmer.trimJar(fullJar, slimJar, logger);
+            // 5. Trim native libraries to produce slim jar
+            progress.update(0.85f, "Optimizing JAR size (stripping unused natives)...");
+            Path buildLibsDir = sourceDir.resolve("build").resolve("libs");
+            Path fullJar = findBuiltJar(buildLibsDir);
+            Path slimJar = buildLibsDir.resolve(fullJar.getFileName().toString().replace(".jar", "-slim.jar"));
+            JarTrimmer.trimJar(fullJar, slimJar, logger);
 
-        // 6. Deploy to active mods folder
-        progress.update(0.95f, "Installing to mods folder...");
-        Files.createDirectories(modsDir);
-        Path destModJar = modsDir.resolve(slimJar.getFileName().toString());
+            // 6. Deploy to active mods folder
+            progress.update(0.95f, "Installing to mods folder...");
+            Files.createDirectories(modsDir);
+            Path destModJar = modsDir.resolve(slimJar.getFileName().toString());
 
-        // Clean older Voxy jars to prevent duplicates and mod conflicts
-        cleanOldVoxyJars(modsDir, destModJar.getFileName().toString(), logger);
+            // Clean older Voxy jars to prevent duplicates and mod conflicts
+            cleanOldVoxyJars(modsDir, destModJar.getFileName().toString(), logger);
 
-        Files.copy(slimJar, destModJar, StandardCopyOption.REPLACE_EXISTING);
-        logger.accept("Successfully deployed: " + destModJar);
+            Files.copy(slimJar, destModJar, StandardCopyOption.REPLACE_EXISTING);
+            logger.accept("Successfully deployed: " + destModJar);
 
-        // 7. Clean up workspace: delete all intermediate build files, downloaded source, and JDK
-        progress.update(0.98f, "Cleaning up workspace...");
-        logger.accept("Deleting build workspace to reclaim disk space...");
-        deleteDirectoryRecursively(workspaceDir);
-        logger.accept("Workspace cleaned up. Temporary files deleted.");
+            // 7. Clean up workspace: delete all intermediate build files, downloaded source, and JDK
+            progress.update(0.98f, "Cleaning up workspace...");
+            logger.accept("Deleting build workspace to reclaim disk space...");
+            deleteDirectoryRecursively(workspaceDir);
+            logger.accept("Workspace cleaned up. Temporary files deleted.");
 
-        progress.update(1.0f, "Installation complete!");
-        logger.accept("==================================================");
-        logger.accept("NeoVoxy has been successfully built and installed!");
-        logger.accept("Please restart Minecraft to load the new mod.");
-        logger.accept("==================================================");
+            progress.update(1.0f, "Installation complete!");
+            logger.accept("==================================================");
+            logger.accept("NeoVoxy has been successfully built and installed!");
+            logger.accept("Please restart Minecraft to load the new mod.");
+            logger.accept("==================================================");
+        } catch (InterruptedException e) {
+            logger.accept("Build was cancelled.");
+            deleteDirectoryRecursively(workspaceDir.resolve("voxy-source"));
+            purgeGradleScriptCaches(null);
+            throw e;
+        } catch (Exception e) {
+            deleteDirectoryRecursively(workspaceDir.resolve("voxy-source"));
+            throw e;
+        }
     }
 
     private static Path fetchSource(Path workspaceDir, Consumer<String> logger) throws Exception {
@@ -161,24 +171,56 @@ public class BuildManager {
             Files.walkFileTree(root, new SimpleFileVisitor<>() {
                 @Override
                 public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                    try {
-                        Files.deleteIfExists(file);
-                    } catch (Exception ignored) {
-                        file.toFile().deleteOnExit();
-                    }
+                    safeDelete(file);
                     return FileVisitResult.CONTINUE;
                 }
 
                 @Override
                 public FileVisitResult postVisitDirectory(Path dir, IOException exc) {
-                    try {
-                        Files.deleteIfExists(dir);
-                    } catch (Exception ignored) {
-                        dir.toFile().deleteOnExit();
-                    }
+                    safeDelete(dir);
                     return FileVisitResult.CONTINUE;
                 }
             });
+        } catch (Exception ignored) {
+        }
+    }
+
+    private static void safeDelete(Path path) {
+        for (int i = 0; i < 5; i++) {
+            try {
+                if (!Files.isWritable(path)) {
+                    path.toFile().setWritable(true);
+                }
+                Files.deleteIfExists(path);
+                return;
+            } catch (Exception e) {
+                try {
+                    Thread.sleep(50);
+                } catch (InterruptedException ignored) {
+                    break;
+                }
+            }
+        }
+        path.toFile().deleteOnExit();
+    }
+
+    public static void purgeGradleScriptCaches(Consumer<String> logger) {
+        try {
+            Path userHome = Paths.get(System.getProperty("user.home"));
+            Path cachesDir = userHome.resolve(".gradle").resolve("caches");
+            if (Files.isDirectory(cachesDir)) {
+                try (var stream = Files.list(cachesDir)) {
+                    stream.filter(p -> {
+                        String name = p.getFileName().toString();
+                        return name.startsWith("jars-") || name.startsWith("scripts");
+                    }).forEach(p -> {
+                        if (logger != null) {
+                            logger.accept("Purging stale Gradle script cache: " + p.getFileName());
+                        }
+                        deleteDirectoryRecursively(p);
+                    });
+                }
+            }
         } catch (Exception ignored) {
         }
     }
@@ -214,6 +256,12 @@ public class BuildManager {
     }
 
     private static void runGradle(Path sourceDir, Path javaHome, Consumer<String> logger) throws Exception {
+        runGradleWithRetry(sourceDir, javaHome, logger, false);
+    }
+
+    private static void runGradleWithRetry(Path sourceDir, Path javaHome, Consumer<String> logger, boolean isRetry) throws Exception {
+        if (cancelled) throw new InterruptedException("Build cancelled by user.");
+
         boolean isWin = JdkManager.isWindows();
         Path gradlew = sourceDir.resolve(isWin ? "gradlew.bat" : "gradlew");
 
@@ -225,6 +273,8 @@ public class BuildManager {
         cmd.add(gradlew.toAbsolutePath().toString());
         cmd.add("build");
         cmd.add("--no-daemon");
+        cmd.add("--no-build-cache");
+        cmd.add("--no-watch-fs");
         cmd.add("-x");
         cmd.add("test");
 
@@ -243,9 +293,21 @@ public class BuildManager {
         Process process = pb.start();
         runningProcess = process;
 
+        StringBuilder outputLog = new StringBuilder();
+
         // Pipe output
-        Thread stdoutThread = new Thread(() -> readStream(process.getInputStream(), logger));
-        Thread stderrThread = new Thread(() -> readStream(process.getErrorStream(), logger));
+        Thread stdoutThread = new Thread(() -> readStream(process.getInputStream(), line -> {
+            logger.accept(line);
+            synchronized (outputLog) {
+                outputLog.append(line).append("\n");
+            }
+        }));
+        Thread stderrThread = new Thread(() -> readStream(process.getErrorStream(), line -> {
+            logger.accept(line);
+            synchronized (outputLog) {
+                outputLog.append(line).append("\n");
+            }
+        }));
         stdoutThread.start();
         stderrThread.start();
 
@@ -254,7 +316,36 @@ public class BuildManager {
         stdoutThread.join();
         stderrThread.join();
 
+        if (cancelled) {
+            throw new InterruptedException("Build cancelled by user.");
+        }
+
         if (exitCode != 0) {
+            String allOutput = outputLog.toString();
+            boolean isCacheCorruption = allOutput.contains("ClassNotFoundException")
+                    || allOutput.contains("NoClassDefFoundError")
+                    || allOutput.contains("Could not generate a decorated class")
+                    || allOutput.contains("Could not compile build file")
+                    || allOutput.contains("Could not compile settings file")
+                    || allOutput.contains("CorruptIndexException")
+                    || allOutput.contains("CorruptedCacheException")
+                    || allOutput.contains("Could not initialize class")
+                    || allOutput.contains("$_localJars_closure");
+
+            if (!isRetry && isCacheCorruption) {
+                logger.accept("==================================================");
+                logger.accept("⚠️ Corrupted Gradle script cache detected.");
+                logger.accept("Purging corrupted Gradle script caches and retrying automatically...");
+                logger.accept("==================================================");
+
+                purgeGradleScriptCaches(logger);
+                deleteDirectoryRecursively(sourceDir.resolve(".gradle"));
+
+                // Retry once
+                runGradleWithRetry(sourceDir, javaHome, logger, true);
+                return;
+            }
+
             throw new RuntimeException("Gradle build failed with exit code: " + exitCode);
         }
     }
