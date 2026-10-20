@@ -24,9 +24,9 @@ An in-game, one-click tool that compiles and installs **NeoVoxy** directly insid
 * **Client-Side Only:** Runs completely locally. You can join any vanilla or modded server with it.
 ---
 ## 🛠️ How to Use
-1. Put `marcys-voxy-setup-1.0.2.jar` into your Minecraft `mods` folder.
+1. Put `marcys-voxy-setup-1.0.3.jar` into your Minecraft `mods` folder.
 2. Launch Minecraft (NeoForge 1.21.1) to the **Title Screen**.
-3. Click **"⚡ Setup NeoVoxy"** in the top-left corner.
+3. Click **"⚡ Setup NeoVoxy"** (centered below the Options and Quit Game buttons).
 4. Click **"Start Setup"** and give it ~30–60 seconds to compile.
 5. Click **"Close Game"**, restart Minecraft, and enjoy your distant train LODs!
 ---
